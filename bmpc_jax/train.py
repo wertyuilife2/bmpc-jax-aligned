@@ -319,21 +319,24 @@ def train(cfg: dict):
             replay_buffer.data['last_reanalyze'][seq_inds, env_inds] = \
                 total_reanalyze_steps
 
-            # Update policy with reanalyzed samples
-            if not pretrain:
-              batch['expert_mean'][:, :b, :] = reanalyze_mean
-              batch['expert_std'][:, :b, :] = reanalyze_std
-              reanalyze_age = total_reanalyze_steps - batch['last_reanalyze']
-              bmpc_scale = bmpc_config.discount**reanalyze_age
-              rng, policy_key = jax.random.split(rng)
-              agent, policy_info = agent.update_policy(
-                  zs=true_zs,
-                  expert_mean=batch['expert_mean'],
-                  expert_std=batch['expert_std'],
-                  bmpc_scale=bmpc_scale,
-                  key=policy_key
-              )
-              train_info.update(policy_info)
+            batch['expert_mean'][:, :b, :] = reanalyze_mean
+            batch['expert_std'][:, :b, :] = reanalyze_std
+
+          # Update policy with reanalyzed samples
+          if not pretrain and \
+                  total_num_updates % bmpc_config.policy_update_interval == 0:
+
+            reanalyze_age = total_reanalyze_steps - batch['last_reanalyze']
+            bmpc_scale = bmpc_config.discount**reanalyze_age
+            rng, policy_key = jax.random.split(rng)
+            agent, policy_info = agent.update_policy(
+                zs=true_zs,
+                expert_mean=batch['expert_mean'],
+                expert_std=batch['expert_std'],
+                bmpc_scale=bmpc_scale,
+                key=policy_key
+            )
+            train_info.update(policy_info)
 
           if log_this_step:
             for k, v in train_info.items():

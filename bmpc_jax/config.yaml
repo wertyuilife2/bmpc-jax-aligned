@@ -62,6 +62,7 @@ tdmpc2:
 
 bmpc:
   reanalyze_interval: 10
+  policy_update_interval: 10
   reanalyze_batch_size: 20
   reanalyze_horizon: 3
-  discount: 0.995
+  discount: 0.99
