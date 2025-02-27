@@ -20,7 +20,7 @@ from bmpc_jax import BMPC, WorldModel
 from bmpc_jax.common.activations import mish, simnorm
 from bmpc_jax.data import SequentialReplayBuffer
 from bmpc_jax.envs.dmcontrol import make_dmc_env
-from bmpc_jax.networks import NormedLinear
+from bmpc_jax.networks import Linear
 
 gpus = tf.config.experimental.list_physical_devices('GPU')
 for gpu in gpus:
@@ -83,24 +83,21 @@ def train(cfg: dict):
   ##############################
   # Agent setup
   ##############################
-  dtype = jnp.dtype(model_config.dtype)
   rng, model_key, encoder_key = jax.random.split(rng, 3)
-  encoder_module = nn.Sequential(
-      [
-          NormedLinear(
-              encoder_config.encoder_dim, activation=mish, dtype=dtype
-          )
-          for _ in range(encoder_config.num_encoder_layers-1)
-      ] + [
-          NormedLinear(
-              model_config.latent_dim,
-              activation=partial(
-                  simnorm, simplex_dim=model_config.simnorm_dim
-              ),
-              dtype=dtype
-          )
-      ]
-  )
+  encoder_module = nn.Sequential([
+      Linear(
+          encoder_config.encoder_dim,
+          activation=mish,
+          norm=nn.LayerNorm(),
+      )
+      for _ in range(encoder_config.num_encoder_layers-1)
+  ] + [
+      Linear(
+          model_config.latent_dim,
+          activation=partial(simnorm, simplex_dim=model_config.simnorm_dim),
+          norm=nn.LayerNorm(),
+      )
+  ])
 
   if encoder_config.tabulate:
     print("Encoder")

@@ -6,7 +6,7 @@ from flax.training.train_state import TrainState
 from flax import struct
 import numpy as np
 from numpy.typing import ArrayLike
-from bmpc_jax.networks import NormedLinear
+from bmpc_jax.networks import Linear
 from bmpc_jax.common.activations import mish, simnorm
 from jaxtyping import PRNGKeyArray
 import jax
@@ -70,9 +70,9 @@ class WorldModel(struct.PyTreeNode):
 
     # Latent forward dynamics model
     dynamics_module = nn.Sequential([
-        NormedLinear(latent_dim, activation=mish, dtype=dtype),
-        NormedLinear(latent_dim, activation=mish, dtype=dtype),
-        NormedLinear(
+        Linear(latent_dim, activation=mish, norm=nn.LayerNorm(), dtype=dtype),
+        Linear(latent_dim, activation=mish, norm=nn.LayerNorm(), dtype=dtype),
+        Linear(
             latent_dim,
             activation=partial(simnorm, simplex_dim=simnorm_dim),
             dtype=dtype
@@ -91,9 +91,9 @@ class WorldModel(struct.PyTreeNode):
 
     # Transition reward model
     reward_module = nn.Sequential([
-        NormedLinear(latent_dim, activation=mish, dtype=dtype),
-        NormedLinear(latent_dim, activation=mish, dtype=dtype),
-        nn.Dense(num_bins, kernel_init=nn.initializers.zeros)
+        Linear(latent_dim, activation=mish, norm=nn.LayerNorm(), dtype=dtype),
+        Linear(latent_dim, activation=mish, norm=nn.LayerNorm(), dtype=dtype),
+        Linear(num_bins, kernel_init=nn.initializers.zeros)
     ])
     reward_model = TrainState.create(
         apply_fn=reward_module.apply,
@@ -109,11 +109,9 @@ class WorldModel(struct.PyTreeNode):
 
     # Policy model
     policy_module = nn.Sequential([
-        NormedLinear(latent_dim, activation=mish, dtype=dtype),
-        NormedLinear(latent_dim, activation=mish, dtype=dtype),
-        nn.Dense(
-            2*action_dim, kernel_init=nn.initializers.truncated_normal(0.02)
-        )
+        Linear(latent_dim, activation=mish, norm=nn.LayerNorm(), dtype=dtype),
+        Linear(latent_dim, activation=mish, norm=nn.LayerNorm(), dtype=dtype),
+        Linear(2*action_dim)
     ])
     policy_model = TrainState.create(
         apply_fn=policy_module.apply,
@@ -128,19 +126,21 @@ class WorldModel(struct.PyTreeNode):
     # Return/value model (ensemble)
     value_param_key, value_dropout_key = jax.random.split(value_key)
     value_base = partial(nn.Sequential, [
-        NormedLinear(
+        Linear(
             latent_dim,
             activation=mish,
+            norm=nn.LayerNorm(),
             dropout_rate=value_dropout,
             dtype=dtype
         ),
-        NormedLinear(
+        Linear(
             latent_dim,
             activation=mish,
+            norm=nn.LayerNorm(),
             dropout_rate=value_dropout,
             dtype=dtype
         ),
-        nn.Dense(num_bins, kernel_init=nn.initializers.zeros)
+        Linear(num_bins, kernel_init=nn.initializers.zeros)
     ])
     value_ensemble = Ensemble(value_base, num=num_value_nets)
     value_model = TrainState.create(
@@ -162,9 +162,13 @@ class WorldModel(struct.PyTreeNode):
 
     if predict_continues:
       continue_module = nn.Sequential([
-          NormedLinear(latent_dim, activation=mish, dtype=dtype),
-          NormedLinear(latent_dim, activation=mish, dtype=dtype),
-          nn.Dense(1, kernel_init=nn.initializers.zeros)
+          Linear(
+              latent_dim, activation=mish, norm=nn.LayerNorm(), dtype=dtype
+          ),
+          Linear(
+              latent_dim, activation=mish, norm=nn.LayerNorm(), dtype=dtype
+          ),
+          Linear(1, kernel_init=nn.initializers.zeros)
       ])
       continue_model = TrainState.create(
           apply_fn=continue_module.apply,
