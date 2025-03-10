@@ -7,7 +7,7 @@ A performant Jax implementation of [Bootstrapped Model Predictive Control (BMPC)
 To install the dependencies for this project (tested on Ubuntu 22.04), run
 
 ```[bash]
-pip install -U numpy tqdm "flax[all]" optax jaxtyping einops gymnasium[mujoco] hydra-core tensorboard orbax-checkpoint dm_control tensorflow tensorflow-probability tf-keras
+pip install -U numpy tqdm "flax[all]" optax jaxtyping einops gymnasium[mujoco]==1.0.0 hydra-core tensorboard orbax-checkpoint dm_control tensorflow tensorflow-probability tf-keras
 pip install -U "jax[cuda12]"
 ```
 
