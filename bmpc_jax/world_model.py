@@ -275,8 +275,8 @@ class WorldModel(struct.PyTreeNode):
   def sample_actions(self,
                      z: jax.Array,
                      params: Dict,
-                     min_log_std: float = -3,
-                     max_log_std: float = 1,
+                     min_log_std: float = -2,
+                     max_log_std: float = -1,
                      *,
                      key: PRNGKeyArray
                      ) -> Tuple[jax.Array, ...]:

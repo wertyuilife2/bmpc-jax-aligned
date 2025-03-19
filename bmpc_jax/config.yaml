@@ -2,8 +2,9 @@ hydra:
   job:
     name: ${env.env_id}_s${seed}
   run:
-    dir: outputs/${hydra.job.name}/${now:%Y-%m-%d_%H-%M-%S}
+    dir: outputs/${exp_name}/${env.env_id}/${now:%Y-%m-%d_%H-%M-%S}-${seed}
 
+exp_name: default
 seed: 0
 max_steps: 2_000_000
 save_interval_steps: 100000
@@ -62,7 +63,7 @@ tdmpc2:
 
 bmpc:
   reanalyze_interval: 10
-  policy_update_interval: 10
+  policy_update_interval: 1
   reanalyze_batch_size: 20
   reanalyze_horizon: 3
-  discount: 0.99
+  discount: 1

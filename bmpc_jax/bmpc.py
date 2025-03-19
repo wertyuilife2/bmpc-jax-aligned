@@ -193,16 +193,20 @@ class BMPC(struct.PyTreeNode):
       ).clip(-1, 1)
 
       # Compute elites
-      values = symlog(
-          self.estimate_value(z_t, actions, horizon, key=value_keys[i])
-      )
+      # values = symlog(
+      #     self.estimate_value(z_t, actions, horizon, key=value_keys[i])
+      # )
+      values = self.estimate_value(z_t, actions, horizon, key=value_keys[i])
       elite_values, elite_inds = jax.lax.top_k(values, self.num_elites)
       elite_actions = jnp.take_along_axis(
           actions, elite_inds[..., None, None], axis=-3
       )
-
+      
       # Update population distribution
-      score = jax.nn.softmax(elite_values)
+      # score = jax.nn.softmax(elite_values)
+      max_value = jnp.max(elite_values, axis=-1, keepdims=True)
+      score = jnp.exp(0.5 * (elite_values - max_value))
+      score = score / jnp.sum(score, axis=-1, keepdims=True)
       mean = jnp.sum(score[..., None, None] * elite_actions, axis=-3)
       std = jnp.sqrt(
           jnp.sum(
@@ -212,16 +216,22 @@ class BMPC(struct.PyTreeNode):
           )
       ).clip(self.min_plan_std, self.max_plan_std)
 
-    # Select final action
+    # Select final action using Gumbel sampling
+    key, gumbel_key = jax.random.split(key)
+    gumbels = jax.random.gumbel(gumbel_key, shape=elite_values.shape)
+    gumbel_scores = jnp.log(score) + gumbels
+    action_ind = jnp.argmax(gumbel_scores, axis=-1)
+    action = jnp.take_along_axis(elite_actions, action_ind[..., None, None, None], axis=-3)[..., 0, :, :]
+    
     if deterministic:
-      action = mean[..., 0, :]
+      final_action = action[..., 0, :]
     else:
       key, final_noise_key = jax.random.split(key)
-      action = mean[..., 0, :] + std[..., 0, :] * jax.random.normal(
+      final_action = action[..., 0, :] + std[..., 0, :] * jax.random.normal(
           final_noise_key, shape=batch_shape + (self.model.action_dim,)
       )
 
-    return action.clip(-1, 1), (mean, std)
+    return final_action.clip(-1, 1), (mean, std, action) # will imitate the action instead of mean
 
   @partial(jax.jit, static_argnames=('horizon'))
   def estimate_value(self,
